@@ -6,54 +6,119 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style>
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
-    textarea { width: 100%; min-height: 140px; padding: .75rem; border: 1px solid #ddd; border-radius: 10px; }
-    button { margin-top: .75rem; padding: .6rem 1rem; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; }
-    #graph { height: 540px; border: 1px solid #eee; border-radius: 12px; margin-top: 1rem; }
-    .row { display: flex; gap: 1rem; align-items: center; }
-    a { color: #111; }
+    :root { --pad: 14px; --border:#e8e8e8; --text:#111; --muted:#666; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: var(--text);
+           max-width: 1100px; margin: 28px auto; padding: 0 14px; }
+    textarea { width: 100%; min-height: 120px; padding: var(--pad); border: 1px solid var(--border); border-radius: 10px; }
+    button { padding: 10px 14px; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; }
+    #graph { height: 560px; border: 1px solid var(--border); border-radius: 12px; margin-top: 12px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .muted { color: var(--muted); }
+    .pill { padding: 3px 10px; border:1px solid var(--border); border-radius:999px; }
+    a { color: var(--text); }
   </style>
 </head>
 <body>
   <h1>ENS Social Graph</h1>
-  <p>Paste ENS name pairs (one per line, <code>name1, name2</code>). Click a node to open its profile.</p>
+  <p class="muted">Paste pairs (<code>name1, name2</code>). Double-click a node to open its profile. Use Add/Delete modes to persist edges.</p>
 
-  <!-- Use GET so it works fine on Render without CSRF -->
   <form method="get" action="/graph/">
     <textarea name="pairs" placeholder="vitalik.eth, balajis.eth&#10;balajis.eth, naval.eth">{{ pairs }}</textarea>
     <div class="row">
       <button type="submit">Render Graph</button>
-      <a href="/">Back to ENS Profile</a>
+      <a href="/" class="pill">Back to Profile</a>
+      <span class="muted pill">DB-saved edges are loaded automatically</span>
     </div>
   </form>
+
+  <div class="row">
+    <label class="pill"><input type="radio" name="mode" value="add" checked> Add Edge</label>
+    <label class="pill"><input type="radio" name="mode" value="delete"> Delete Edge</label>
+    <span id="status" class="muted">Select two nodes to add an edge.</span>
+  </div>
 
   <div id="graph"></div>
 
   <script>
+    // Data injected by Django (JSON strings from views.py)
     const NODES = {{ js_nodes|safe }};
     const EDGES = {{ js_edges|safe }};
 
-    if (NODES.length > 0) {
-      const container = document.getElementById('graph');
-      const data = {
-        nodes: new vis.DataSet(NODES),
-        edges: new vis.DataSet(EDGES),
-      };
-      const options = {
-        physics: { stabilization: true },
-        interaction: { hover: true },
-        nodes: { shape: 'dot', size: 16, borderWidth: 1 },
-        edges: { arrows: { to: { enabled: false }}, smooth: { type: 'dynamic' } }
-      };
-      const network = new vis.Network(container, data, options);
+    const netEl = document.getElementById('graph');
+    const nodes = new vis.DataSet(NODES || []);
+    const edges = new vis.DataSet(EDGES || []);
+    const network = new vis.Network(netEl, { nodes, edges }, {
+      physics: { stabilization: true },
+      interaction: { hover: true },
+      nodes: { shape: 'dot', size: 16, borderWidth: 1 },
+      edges: { smooth: { type: 'dynamic' } }
+    });
 
-      network.on("click", params => {
-        if (params.nodes && params.nodes.length > 0) {
-          const ens = params.nodes[0];
-          window.location.href = "/?ens=" + encodeURIComponent(ens);
+    const statusEl = document.getElementById('status');
+    const modeEls = document.querySelectorAll('input[name="mode"]');
+    const mode = () => [...modeEls].find(r => r.checked)?.value || 'add';
+
+    // Navigate to profile on double-click
+    network.on('doubleClick', (p) => {
+      if (p.nodes?.length) window.location.href = '/?ens=' + encodeURIComponent(p.nodes[0]);
+    });
+
+    // Edit edges
+    let first = null;
+    function reset() { first = null; }
+
+    network.on('click', async (p) => {
+      if (mode() === 'add') {
+        if (p.nodes?.length) {
+          const clicked = p.nodes[0];
+          if (!first) {
+            first = clicked;
+            statusEl.textContent = `Selected "${first}". Click another node to add edge.`;
+            return;
+          }
+          const from = first, to = clicked;
+          reset();
+          if (from === to) return statusEl.textContent = "Can't add self-edge.";
+          const id = `${from}|${to}`;
+          try {
+            if (!edges.get(id)) edges.add({ id, from, to });              // optimistic
+            const r = await fetch('/api/edges/add', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ from, to })
+            });
+            const j = await r.json();
+            if (!r.ok || j.error) { edges.remove(id); throw new Error(j.error || 'Add failed'); }
+            statusEl.textContent = `Saved: ${from} → ${to}`;
+          } catch (e) { statusEl.textContent = e.message; }
         }
-      });
-    }
+      } else if (mode() === 'delete') {
+        if (p.edges?.length) {
+          const id = p.edges[0];
+          const e = edges.get(id);
+          if (!e) return;
+          edges.remove(id);                                              // optimistic
+          const { from, to } = e;
+          try {
+            const r = await fetch('/api/edges/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ from, to })
+            });
+            const j = await r.json();
+            if (!r.ok || j.error) { edges.add({ id, from, to }); throw new Error(j.error || 'Delete failed'); }
+            statusEl.textContent = `Deleted: ${from} → ${to}`;
+          } catch (e2) { statusEl.textContent = e2.message; }
+        } else {
+          statusEl.textContent = 'Click an existing edge to delete it.';
+        }
+      }
+    });
+
+    modeEls.forEach(r => r.addEventListener('change', () => {
+      reset();
+      statusEl.textContent = mode() === 'add' ? 'Select two nodes to add an edge.' : 'Click an edge to delete it.';
+    }));
   </script>
 </body>
 </html>
