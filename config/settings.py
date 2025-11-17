@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
+
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -16,49 +17,40 @@ import dj_database_url
 
 load_dotenv()
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'dev-only-key' 
+SECRET_KEY = 'dev-only-key'  # replace later for production
 
 DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
+# Allow local dev + automatically allow the Render hostname
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 ALLOWED_HOSTS = [
     ".onrender.com",             # allow any Render subdomain (nice fallback)
     "localhost",
     "127.0.0.1",
-    ]
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # ← our custom templates folder
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
 ]
+
+
+
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-2yp8az01zfhw4*(-(g7$dbg_a=w+tf%6llx6h%y_4qt8vdy*dy'
+SECRET_KEY = 'django-insecure-(#p@x7ljh_!5t9y9it5whipea+8hxa%7160g1imf6c4klshbk9'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 
+
+
 # Application definition
 
 INSTALLED_APPS = [
-    'whitenoise.runserver_nostatic',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -84,7 +76,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # 👈 our custom templates directory
+        'DIRS': [BASE_DIR / 'templates'],  # ← our custom templates folder
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -101,24 +93,23 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-
-
-
 DATABASES = {
     "default": dj_database_url.parse(
         os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
         conn_max_age=600,
-        ssl_require=os.getenv("REQUIRE_DB_SSL", "True") == "True",
+        ssl_require=os.getenv("REQUIRE_DB_SSL", "False") == "True",
     )
 }
 
 print("BOOT: DB =", DATABASES["default"].get("ENGINE"), DATABASES["default"].get("NAME"))
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -153,8 +144,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
-
-
 
 
 # Default primary key field type
