@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ENS Profile Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+    form { display: flex; gap: .6rem; margin-bottom: 1rem; }
+    input[type="text"] { flex: 1; padding: .6rem .8rem; border: 1px solid #ddd; border-radius: 8px; }
+    button { padding: .6rem .9rem; border: 0; border-radius: 8px; background: #111; color: #fff; cursor: pointer; }
+    .card { border: 1px solid #eee; border-radius: 12px; padding: 1rem; }
+    .row { display: grid; grid-template-columns: 180px 1fr; gap: .75rem; margin: .4rem 0; }
+    .muted { color: #666; }
+    .error { color: #b00020; }
+    .key { color: #444; font-weight: 600; }
+    .avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <h1>ENS Profile Viewer</h1>
+
+  <form method="get" action="/">
+    <input type="text" name="ens" value="{{ query }}" placeholder="e.g. vitalik.eth" />
+    <button type="submit">Lookup</button>
+  </form>
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  {% if profile %}
+    <div class="card">
+      <div class="row"><div class="key">ENS</div><div>{{ profile.ens }}</div></div>
+      <div class="row"><div class="key">Address</div><div>{{ profile.address }}</div></div>
+      <div class="row"><div class="key">Resolver</div><div class="muted">{{ profile.resolver_address }}</div></div>
+      <div class="row"><div class="key">Reverse Record</div><div class="muted">{{ profile.reverse_record_primary_name }}</div></div>
+      <div class="row"><div class="key">Contenthash</div><div class="muted">{{ profile.contenthash }}</div></div>
+
+      {% if profile.text_records.avatar %}
+        <div class="row">
+          <div class="key">Avatar</div>
+          <div><img class="avatar" src="{{ profile.text_records.avatar }}" alt="avatar" onerror="this.style.display='none'"/></div>
+        </div>
+      {% endif %}
+
+      {% if profile.text_records %}
+        <h3>Text Records</h3>
+        {% for k, v in profile.text_records.items %}
+          {% if k != 'avatar' %}
+            <div class="row"><div class="key">{{ k }}</div><div>{{ v }}</div></div>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+  {% elif query %}
+    <p class="muted">No profile data available.</p>
+  {% endif %}
+</body>
+</html>
