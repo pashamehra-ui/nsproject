@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.urls import path
-from profiles.views import home
+import profiles.views as pv
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", home, name="home"),   # 👈 this replaces the rocket page
+    path("", pv.home, name="home"),
+    path("graph/", pv.graph, name="graph"),
 ]

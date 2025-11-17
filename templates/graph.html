@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ENS Social Graph</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+    textarea { width: 100%; min-height: 140px; padding: .75rem; border: 1px solid #ddd; border-radius: 10px; }
+    button { margin-top: .75rem; padding: .6rem 1rem; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; }
+    #graph { height: 540px; border: 1px solid #eee; border-radius: 12px; margin-top: 1rem; }
+    .row { display: flex; gap: 1rem; align-items: center; }
+    a { color: #111; }
+  </style>
+</head>
+<body>
+  <h1>ENS Social Graph</h1>
+  <p>Paste ENS name pairs (one per line, <code>name1, name2</code>). Click a node to open its profile.</p>
+
+  <!-- Use GET so it works fine on Render without CSRF -->
+  <form method="get" action="/graph/">
+    <textarea name="pairs" placeholder="vitalik.eth, balajis.eth&#10;balajis.eth, naval.eth">{{ pairs }}</textarea>
+    <div class="row">
+      <button type="submit">Render Graph</button>
+      <a href="/">Back to ENS Profile</a>
+    </div>
+  </form>
+
+  <div id="graph"></div>
+
+  <script>
+    const NODES = {{ js_nodes|safe }};
+    const EDGES = {{ js_edges|safe }};
+
+    if (NODES.length > 0) {
+      const container = document.getElementById('graph');
+      const data = {
+        nodes: new vis.DataSet(NODES),
+        edges: new vis.DataSet(EDGES),
+      };
+      const options = {
+        physics: { stabilization: true },
+        interaction: { hover: true },
+        nodes: { shape: 'dot', size: 16, borderWidth: 1 },
+        edges: { arrows: { to: { enabled: false }}, smooth: { type: 'dynamic' } }
+      };
+      const network = new vis.Network(container, data, options);
+
+      network.on("click", params => {
+        if (params.nodes && params.nodes.length > 0) {
+          const ens = params.nodes[0];
+          window.location.href = "/?ens=" + encodeURIComponent(ens);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
