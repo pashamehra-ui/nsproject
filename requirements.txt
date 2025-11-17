@@ -30,7 +30,7 @@ packaging==25.0
 parsimonious==0.10.0
 propcache==0.4.1
 protobuf==6.33.1
-psycopg2-binary==2.9.9
+psycopg[binary]==3.1.18
 py-ecc==8.0.0
 pycryptodome==3.23.0
 pydantic==2.12.4

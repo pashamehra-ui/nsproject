@@ -108,15 +108,17 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 
+
+
 DATABASES = {
     "default": dj_database_url.parse(
         os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
-        conn_max_age=600,  # persistent connections in prod
-        ssl_require=os.getenv("REQUIRE_DB_SSL", "True") == "True"
+        conn_max_age=600,
+        ssl_require=os.getenv("REQUIRE_DB_SSL", "True") == "True",
     )
 }
 
-
+print("BOOT: DB =", DATABASES["default"].get("ENGINE"), DATABASES["default"].get("NAME"))
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
